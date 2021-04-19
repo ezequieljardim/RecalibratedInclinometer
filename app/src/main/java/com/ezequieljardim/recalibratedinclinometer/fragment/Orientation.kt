@@ -10,7 +10,7 @@ import android.view.WindowManager
 
 class Orientation(activity: Activity) : SensorEventListener {
     interface Listener {
-        fun onOrientationChanged(yaw: Float, pitch: Float, roll: Float)
+        fun onOrientationChanged(yaw: Float, pitch: Float, roll: Float, yawRad: Float, pitchRad: Float, rollRad: Float)
     }
 
     private val mWindowManager: WindowManager = activity.window.windowManager
@@ -90,10 +90,11 @@ class Orientation(activity: Activity) : SensorEventListener {
         SensorManager.getOrientation(adjustedRotationMatrix, orientation)
 
         // Convert radians to degrees
-        val yaw = orientation[0] * -57
+        val roll = orientation[0] * -57
         val pitch = orientation[1] * -57
-        val roll = orientation[2] * -57
-        mListener!!.onOrientationChanged(yaw, pitch, roll)
+        val yaw = orientation[2] * -57
+
+        mListener!!.onOrientationChanged(yaw, pitch, roll, orientation[0], orientation[1], orientation[2])
     }
 
     companion object {

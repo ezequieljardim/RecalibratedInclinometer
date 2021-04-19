@@ -4,52 +4,42 @@ import android.arch.lifecycle.ViewModelProviders
 import android.os.Bundle
 import android.os.Handler
 import android.support.v4.app.Fragment
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
 import com.ezequieljardim.recalibratedinclinometer.R
 import com.ezequieljardim.recalibratedinclinometer.gauge.GaugeAcceleration
 import com.ezequieljardim.recalibratedinclinometer.viewmodel.SensorViewModel
+import kotlin.math.cos
+import kotlin.math.sin
 
-/*
-* AccelerationExplorer
-* Copyright 2018 Kircher Electronics, LLC
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-/**
- * Created by kaleb on 7/8/17.
- */
 class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
+    lateinit var yawView: TextView
+    lateinit var pitchView: TextView
+    lateinit var rollView: TextView
 
-//    var senseManager: SensorManager? = null
-//    lateinit var linearAcceleration: Sensor
+    lateinit var storedYawView: TextView
+    lateinit var storedPitchView: TextView
+    lateinit var storedRollView: TextView
 
-    var xDegreesTv: TextView? = null
-    var yDegreesTv: TextView? = null
-    var zDegreesTv: TextView? = null
+    lateinit var newXAccelerationTV: TextView
+    lateinit var newYAccelerationTV: TextView
+    lateinit var newZAccelerationTV: TextView
+
+    lateinit var calibrationBtn: Button
+    lateinit var resetBtn: Button
 
     private var gaugeAcceleration: GaugeAcceleration? = null
     private var handler: Handler? = null
     private var runnable: Runnable? = null
     private var acceleration: FloatArray? = null
+    private var rotationDegrees: FloatArray? = null
+    private var rotationRadians: FloatArray? = null
 
-//    private var accelerometerReading = FloatArray(3)
-//    private var magnetometerReading = FloatArray(3)
-//    private var rotationMatrix = FloatArray(9)
-//    private var orientationAngles = FloatArray(3)
+    private var calibrationDegrees: FloatArray? = null
+    private var calibrationRadians: FloatArray? = null
 
     private var mOrientation: Orientation? = null
 
@@ -71,15 +61,24 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         val view = inflater.inflate(R.layout.fragment_acceleration_gauge, container, false)
         gaugeAcceleration = view.findViewById(R.id.gauge_acceleration)
 
-        xDegreesTv = view.findViewById(R.id.orientation_x)
-        yDegreesTv = view.findViewById(R.id.orientation_y)
-        zDegreesTv = view.findViewById(R.id.orientation_z)
+        yawView = view.findViewById(R.id.yaw)
+        pitchView = view.findViewById(R.id.pitch)
+        rollView = view.findViewById(R.id.roll)
 
+        storedYawView = view.findViewById(R.id.stored_yaw)
+        storedPitchView = view.findViewById(R.id.stored_pitch)
+        storedRollView = view.findViewById(R.id.stored_roll)
 
-//        senseManager = requireActivity().getSystemService(Context.SENSOR_SERVICE) as SensorManager? // initialization of sensorManager
-//        if (senseManager != null) {
-//            senseManager?.registerListener(rotationListener, senseManager!!.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR), SensorManager.SENSOR_DELAY_NORMAL)
-//        }
+        newXAccelerationTV = view.findViewById(R.id.new_acc_x)
+        newYAccelerationTV = view.findViewById(R.id.new_acc_y)
+        newZAccelerationTV = view.findViewById(R.id.new_acc_z)
+
+        calibrationBtn = view.findViewById(R.id.calibrate_button)
+
+        calibrationBtn.setOnClickListener { storeRotationValues() }
+
+        resetBtn = view.findViewById(R.id.reset_button)
+        resetBtn.setOnClickListener { resetRotationValues() }
 
         return view
     }
@@ -106,7 +105,26 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
     }
 
     private fun updateAccelerationGauge() {
-        gaugeAcceleration!!.updatePoint(acceleration!![0], acceleration!![1])
+
+        if (calibrationRadians == null) {
+            gaugeAcceleration!!.updatePoint(acceleration!![0], acceleration!![1])
+        } else {
+            val newAcc = FloatArray(3)
+            val horizontalPitch = Math.PI / 2.0f
+            val newPitch = calibrationRadians!![1]
+            val rotRads = horizontalPitch - newPitch
+
+            // Multiply acceleration with rotation matrix around X axis (pitch)
+            newAcc[0] = acceleration!![0]
+            newAcc[1] = (acceleration!![1] * cos(rotRads) + acceleration!![2] * -sin(rotRads)).toFloat()
+            newAcc[2] = (acceleration!![1] * sin(rotRads) + acceleration!![2] * cos(rotRads)).toFloat()
+
+            newXAccelerationTV.text = parseFloat(newAcc[0], "%.2f")
+            newYAccelerationTV.text = parseFloat(newAcc[1], "%.2f")
+            newZAccelerationTV.text = parseFloat(newAcc[2], "%.2f")
+
+            gaugeAcceleration!!.updatePoint(newAcc[0], newAcc[1])
+        }
         //        System.out.println("Accelerations (x,y) = (" + acceleration[0] + "," + acceleration[1] + ")");
     }
 
@@ -120,51 +138,35 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         return String.format(java.util.Locale.US, format, value)
     }
 
-    private fun parseDouble(value: Double, format: String = "%.6f"): String {
-        return String.format(java.util.Locale.US, format, value)
+    override fun onOrientationChanged(yaw: Float, pitch: Float, roll: Float, yawRad: Float, pitchRad: Float, rollRad: Float) {
+        yawView.text = parseFloat(yaw, "%.0f")
+        pitchView.text = parseFloat(pitch, "%.0f")
+        rollView.text = parseFloat(roll, "%.0f")
+
+        rotationDegrees = floatArrayOf(yaw, pitch, roll)
+        rotationRadians = floatArrayOf(yawRad, pitchRad, rollRad)
     }
 
-    override fun onOrientationChanged(yaw: Float, pitch: Float, roll: Float) {
-        Log.d("Eshe", "yaw ${yaw}, pitch ${pitch}, roll ${roll}")
+    private fun storeRotationValues() {
+        calibrationDegrees = rotationDegrees!!.clone()
+        calibrationRadians = rotationRadians!!.clone()
 
-        xDegreesTv!!.text = parseFloat(yaw, "%.0f")
-        yDegreesTv!!.text = parseFloat(roll, "%.0f")
-        zDegreesTv!!.text = parseFloat(pitch, "%.0f")
+        storedYawView.text = parseFloat(calibrationDegrees!![0], "%.0f")
+        storedPitchView.text = parseFloat(calibrationDegrees!![1], "%.0f")
+        storedRollView.text = parseFloat(calibrationDegrees!![2], "%.0f")
     }
 
+    private fun resetRotationValues() {
+        calibrationDegrees = null
+        calibrationRadians = null
 
-//    fun updateOrientationAngles() {
-//        SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magnetometerReading)
-//        val orientation = SensorManager.getOrientation(rotationMatrix, orientationAngles)
-//        val xDegrees = (Math.toDegrees(orientation[0].toDouble()) + 360.0) % 360.0
-//        val xAngle = round(xDegrees * 100) / 100
-//
-//        val yDegrees = (Math.toDegrees(orientation[1].toDouble()) + 360.0) % 360.0
-//        val yAngle = round(yDegrees * 100) / 100
-//
-//        val zDegrees = (Math.toDegrees(orientation[2].toDouble()) + 360.0) % 360.0
-//        val zAngle = round(zDegrees * 100) / 100
-//
-////        Log.d("Eshe", "Orientation angles x, y, z: ${xAngle}, ${yAngle}, ${zAngle}")
-//        xDegreesTv!!.text = parseDouble(xAngle, "%.0f")
-//        yDegreesTv!!.text = parseDouble(yAngle, "%.0f")
-//        zDegreesTv!!.text = parseDouble(zAngle, "%.0f")
-//    }
-//
-//    private val rotationListener = object : SensorEventListener {
-//        override fun onSensorChanged(event: SensorEvent) {
-//            if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-//                System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
-//            } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
-//                System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.size)
-//            }
-//            updateOrientationAngles()
-//
-//        }
-//
-//        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-//            // Do nothing
-//        }
-//    }
+        storedYawView.text = "-"
+        storedPitchView.text = "-"
+        storedRollView.text = "-"
+
+        newXAccelerationTV.text = "-"
+        newYAccelerationTV.text = "-"
+        newZAccelerationTV.text = "-"
+    }
 
 }
