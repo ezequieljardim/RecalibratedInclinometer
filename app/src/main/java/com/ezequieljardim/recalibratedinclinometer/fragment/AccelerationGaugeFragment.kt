@@ -75,10 +75,16 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
 
         calibrationBtn = view.findViewById(R.id.calibrate_button)
 
-        calibrationBtn.setOnClickListener { storeRotationValues() }
+        calibrationBtn.setOnClickListener {
+            gaugeAcceleration!!.resetPointsList()
+            storeRotationValues()
+        }
 
         resetBtn = view.findViewById(R.id.reset_button)
-        resetBtn.setOnClickListener { resetRotationValues() }
+        resetBtn.setOnClickListener {
+            gaugeAcceleration!!.resetPointsList()
+            resetRotationValues()
+        }
 
         return view
     }
