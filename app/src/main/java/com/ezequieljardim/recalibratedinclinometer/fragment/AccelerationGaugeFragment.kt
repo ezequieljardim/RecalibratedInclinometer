@@ -27,6 +27,7 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
     lateinit var newXAccelerationTV: TextView
     lateinit var newYAccelerationTV: TextView
     lateinit var newZAccelerationTV: TextView
+    lateinit var distancePxTV: TextView
 
     lateinit var calibrationBtn: Button
     lateinit var resetBtn: Button
@@ -72,6 +73,8 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         newXAccelerationTV = view.findViewById(R.id.new_acc_x)
         newYAccelerationTV = view.findViewById(R.id.new_acc_y)
         newZAccelerationTV = view.findViewById(R.id.new_acc_z)
+
+        distancePxTV = view.findViewById(R.id.distance_px)
 
         calibrationBtn = view.findViewById(R.id.calibrate_button)
 
@@ -131,6 +134,8 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
 
             gaugeAcceleration!!.updatePoint(newAcc[0], newAcc[1])
         }
+
+        distancePxTV.text = gaugeAcceleration!!.getDistance().toString()
         //        System.out.println("Accelerations (x,y) = (" + acceleration[0] + "," + acceleration[1] + ")");
     }
 

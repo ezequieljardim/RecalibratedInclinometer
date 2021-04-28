@@ -6,6 +6,9 @@ import android.hardware.SensorManager
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class GaugeAcceleration : View {
     // holds the cached static part
@@ -25,6 +28,7 @@ class GaugeAcceleration : View {
 
     private var xPos = 0.0f
     private var yPos = 0.0f
+    private var distancePx = 0.0f
 
     private var scaleXPos = 0.0f
     private var scaleYPos = 0.0f
@@ -62,6 +66,8 @@ class GaugeAcceleration : View {
         init()
     }
 
+    private val zoomedGravityEarthBoundary = SensorManager.GRAVITY_EARTH / 8 // Focus in small acceleration changes
+
     /**
      * Update the measurements for the point.
      *
@@ -72,24 +78,28 @@ class GaugeAcceleration : View {
      */
     fun updatePoint(x: Float, y: Float) {
         // Enforce a limit of 1g or 9.8 m/s^2
-        var x = x
-        var y = y
-        if (x > SensorManager.GRAVITY_EARTH) {
-            x = SensorManager.GRAVITY_EARTH
+
+        var xS = x
+        var yS = y
+
+        if (xS > zoomedGravityEarthBoundary) {
+            xS = zoomedGravityEarthBoundary
         }
-        if (x < -SensorManager.GRAVITY_EARTH) {
-            x = -SensorManager.GRAVITY_EARTH
+        if (xS < -zoomedGravityEarthBoundary) {
+            xS = -zoomedGravityEarthBoundary
         }
-        if (y > SensorManager.GRAVITY_EARTH) {
-            y = SensorManager.GRAVITY_EARTH
+        if (yS > zoomedGravityEarthBoundary) {
+            yS = zoomedGravityEarthBoundary
         }
-        if (y < -SensorManager.GRAVITY_EARTH) {
-            y = -SensorManager.GRAVITY_EARTH
+        if (yS < -zoomedGravityEarthBoundary) {
+            yS = -zoomedGravityEarthBoundary
         }
-        this.xPos = scaleXPos * -x + rimRect!!.centerX()
-        this.yPos = scaleYPos * y + rimRect!!.centerY()
+        this.xPos = scaleXPos * -xS + rimRect!!.centerX()
+        this.yPos = scaleYPos * yS + rimRect!!.centerY()
 
         pointsList.add(Pair(this.xPos, this.yPos))
+
+        // Log.d("Eshe", "Point (${this.xPos}, ${this.yPos}")
 
         this.invalidate()
     }
@@ -106,8 +116,8 @@ class GaugeAcceleration : View {
      */
     private fun initDrawingTools() {
         rimRect = RectF(0.1f, 0.1f, 0.9f, 0.9f)
-        scaleXPos = (rimRect!!.right - rimRect!!.left) / (SensorManager.GRAVITY_EARTH * 2)
-        scaleYPos = (rimRect!!.bottom - rimRect!!.top) / (SensorManager.GRAVITY_EARTH * 2)
+        scaleXPos = (rimRect!!.right - rimRect!!.left) / (zoomedGravityEarthBoundary * 2)
+        scaleYPos = (rimRect!!.bottom - rimRect!!.top) / (zoomedGravityEarthBoundary * 2)
 
         // inner rim oval
         innerRim = RectF(0.25f, 0.25f, 0.75f, 0.75f)
@@ -122,6 +132,7 @@ class GaugeAcceleration : View {
         val rimSize = 0.01f
         faceRect = RectF()
         faceRect!![rimRect!!.left + rimSize, rimRect!!.top + rimSize, rimRect!!.right - rimSize] = rimRect!!.bottom - rimSize
+
         rimShadowPaint = Paint()
         rimShadowPaint!!.style = Paint.Style.FILL
         rimShadowPaint!!.isAntiAlias = true
@@ -141,9 +152,9 @@ class GaugeAcceleration : View {
         innerFace!![innerRim!!.left + rimInnerSize, innerRim!!.top + rimInnerSize, innerRim!!.right - rimInnerSize] = innerRim!!.bottom - rimInnerSize
         pointPaint = Paint()
         pointPaint!!.isAntiAlias = true
-        pointPaint!!.color = Color.parseColor("#2196F3")
-//        pointPaint!!.setShadowLayer(0.01f, -0.005f, -0.005f, 0x7f000000)
+        pointPaint!!.color = Color.RED //Color.parseColor("#2196F3")
         pointPaint!!.style = Paint.Style.FILL_AND_STROKE
+
         backgroundPaint = Paint()
         backgroundPaint!!.isFilterBitmap = true
     }
@@ -215,15 +226,24 @@ class GaugeAcceleration : View {
      */
     private fun drawPoint(canvas: Canvas) {
 
-
+        var distance = 0.0f
+        val dotRadius = 0.004f
 //        canvas.drawCircle(xPos, yPos, 0.025f, pointPaint)
-        for (p in pointsList) {
+        for ((index, p) in pointsList.withIndex()) {
             canvas.save()
             pointPaint!!.color = color
-            canvas.drawCircle(p.first, p.second, 0.007f, pointPaint)
+            canvas.drawCircle(p.first, p.second, dotRadius, pointPaint)
             canvas.restore()
+
+            if (index > 0) {
+                distance = (distance + abs(sqrt((pointsList[index].first - pointsList[index-1].first).pow(2) + (pointsList[index].second - pointsList[index-1].second).pow(2)))).toFloat()
+            }
         }
 
+        val dotPxValue = (background?.width ?: 0) * dotRadius // The square is 1.0f
+        distancePx = distance / dotRadius * dotPxValue
+
+        // Log.d("Eshe", "Distance: $distance, dotPxValue: $dotPxValue, distance in px: ${distance / dotRadius * dotPxValue}")
 
     }
 
@@ -238,6 +258,7 @@ class GaugeAcceleration : View {
             Log.w(Companion.tag, "Background not created")
         } else {
             canvas.drawBitmap(background, 0f, 0f, backgroundPaint)
+//            Log.d("Eshe", "drawBG: ${background?.width} , ${background?.height}")
         }
     }
 
@@ -278,6 +299,10 @@ class GaugeAcceleration : View {
 
     fun resetPointsList() {
         pointsList.clear()
+    }
+
+    fun getDistance(): Float {
+        return distancePx
     }
 
     companion object {
