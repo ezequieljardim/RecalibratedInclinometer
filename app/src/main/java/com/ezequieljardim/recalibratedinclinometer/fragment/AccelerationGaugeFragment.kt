@@ -1,14 +1,14 @@
 package com.ezequieljardim.recalibratedinclinometer.fragment
 
-import android.arch.lifecycle.ViewModelProviders
 import android.os.Bundle
 import android.os.Handler
-import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProviders
 import com.ezequieljardim.recalibratedinclinometer.R
 import com.ezequieljardim.recalibratedinclinometer.gauge.GaugeAcceleration
 import com.ezequieljardim.recalibratedinclinometer.viewmodel.SensorViewModel
@@ -36,6 +36,8 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
 
     lateinit var calibrationBtn: Button
     lateinit var resetBtn: Button
+    lateinit var zoomBtn: Button
+    lateinit var saveBtn: Button
 
     private var gaugeAcceleration: GaugeAcceleration? = null
     private var handler: Handler? = null
@@ -75,9 +77,9 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         storedPitchView = view.findViewById(R.id.stored_pitch)
         storedRollView = view.findViewById(R.id.stored_roll)
 
-//        newXAccelerationTV = view.findViewById(R.id.new_acc_x)
-//        newYAccelerationTV = view.findViewById(R.id.new_acc_y)
-//        newZAccelerationTV = view.findViewById(R.id.new_acc_z)
+        newXAccelerationTV = view.findViewById(R.id.new_acc_x)
+        newYAccelerationTV = view.findViewById(R.id.new_acc_y)
+        newZAccelerationTV = view.findViewById(R.id.new_acc_z)
 
         topLeftQTV = view.findViewById(R.id.top_left_q)
         topRightQTV = view.findViewById(R.id.top_right_q)
@@ -88,6 +90,8 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
 
         calibrationBtn = view.findViewById(R.id.calibrate_button)
 
+        saveBtn = view.findViewById(R.id.save_button)
+
         calibrationBtn.setOnClickListener {
             gaugeAcceleration!!.resetPointsList()
             storeRotationValues()
@@ -97,6 +101,21 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         resetBtn.setOnClickListener {
             gaugeAcceleration!!.resetPointsList()
             resetRotationValues()
+        }
+
+        zoomBtn = view.findViewById(R.id.zoom_button)
+        zoomBtn.setOnClickListener {
+            if (gaugeAcceleration!!.isZoomedIn) {
+                zoomBtn.text = "Zoom in"
+                gaugeAcceleration!!.zoomOut()
+            } else {
+                zoomBtn.text = "Zoom out"
+                gaugeAcceleration!!.zoomIn()
+            }
+        }
+
+        saveBtn.setOnClickListener {
+            onSaveImage()
         }
 
         return view
@@ -121,6 +140,10 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
     override fun onStop() {
         super.onStop()
         mOrientation!!.stopListening()
+    }
+
+    fun onSaveImage() {
+        gaugeAcceleration!!.saveImage()
     }
 
     private fun getCalibrationMatrix(yawAngle: Float, pitchAngle: Float, rollAngle: Float): FloatArray {
@@ -172,9 +195,9 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
             newAcc[1] = acceleration!![0] * rotM[3] + acceleration!![1] * rotM[4] + acceleration!![2] * rotM[5]
             newAcc[2] = acceleration!![0] * rotM[6] + acceleration!![1] * rotM[7] + acceleration!![2] * rotM[8]
 
-//            newXAccelerationTV.text = parseFloat(newAcc[0], "%.2f")
-//            newYAccelerationTV.text = parseFloat(newAcc[1], "%.2f")
-//            newZAccelerationTV.text = parseFloat(newAcc[2], "%.2f")
+            newXAccelerationTV.text = parseFloat(newAcc[0], "%.2f")
+            newYAccelerationTV.text = parseFloat(newAcc[1], "%.2f")
+            newZAccelerationTV.text = parseFloat(newAcc[2], "%.2f")
 
             gaugeAcceleration!!.updatePoint(newAcc[0], newAcc[1])
         }
@@ -227,9 +250,9 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         storedRollView.text = "-"
         storedPitchView.text = "-"
 
-//        newXAccelerationTV.text = "-"
-//        newYAccelerationTV.text = "-"
-//        newZAccelerationTV.text = "-"
+        newXAccelerationTV.text = "-"
+        newYAccelerationTV.text = "-"
+        newZAccelerationTV.text = "-"
     }
 
 }

@@ -1,8 +1,8 @@
 package com.ezequieljardim.recalibratedinclinometer.livedata.acceleration
 
-import android.arch.lifecycle.LiveData
 import android.content.Context
 import android.hardware.SensorManager
+import androidx.lifecycle.LiveData
 import com.kircherelectronics.fsensor.filter.averaging.AveragingFilter
 import com.kircherelectronics.fsensor.filter.averaging.MeanFilter
 import com.kircherelectronics.fsensor.sensor.acceleration.AccelerationSensor

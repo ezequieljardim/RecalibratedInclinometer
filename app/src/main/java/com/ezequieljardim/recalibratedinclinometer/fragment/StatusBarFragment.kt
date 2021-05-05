@@ -1,13 +1,13 @@
 package com.ezequieljardim.recalibratedinclinometer.fragment
 
-import android.arch.lifecycle.ViewModelProviders
 import android.os.Bundle
 import android.os.Handler
-import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProviders
 import com.ezequieljardim.recalibratedinclinometer.R
 import com.ezequieljardim.recalibratedinclinometer.viewmodel.SensorViewModel
 import java.util.*
