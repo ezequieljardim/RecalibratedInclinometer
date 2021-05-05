@@ -25,6 +25,8 @@ class GaugeAcceleration : View {
     private var innerRim: RectF? = null
     private var innerFace: RectF? = null
     private var innerMostDot: RectF? = null
+    private var verticalLine: RectF? = null
+    private var horizontalLine: RectF? = null
 
     private var xPos = 0.0f
     private var yPos = 0.0f
@@ -99,7 +101,7 @@ class GaugeAcceleration : View {
 
         pointsList.add(Pair(this.xPos, this.yPos))
 
-        // Log.d("Eshe", "Point (${this.xPos}, ${this.yPos}")
+//        Log.d("Eshe", "Point (${this.xPos}, ${this.yPos}")
 
         this.invalidate()
     }
@@ -157,6 +159,10 @@ class GaugeAcceleration : View {
 
         backgroundPaint = Paint()
         backgroundPaint!!.isFilterBitmap = true
+
+        horizontalLine = RectF(0.1f, 0.498f, 0.9f, 0.502f)
+
+        verticalLine = RectF(0.498f, 0.1f, 0.502f, 0.9f)
     }
 
     /**
@@ -217,6 +223,13 @@ class GaugeAcceleration : View {
 
         // draw inner white dot
         canvas.drawOval(innerMostDot, rimPaint)
+
+        // draw cross
+        canvas.drawRect(horizontalLine, rimPaint)
+
+        canvas.drawRect(verticalLine, rimPaint)
+
+
     }
 
     /**
@@ -236,7 +249,7 @@ class GaugeAcceleration : View {
             canvas.restore()
 
             if (index > 0) {
-                distance = (distance + abs(sqrt((pointsList[index].first - pointsList[index-1].first).pow(2) + (pointsList[index].second - pointsList[index-1].second).pow(2)))).toFloat()
+                distance = (distance + abs(sqrt((pointsList[index].first - pointsList[index - 1].first).pow(2) + (pointsList[index].second - pointsList[index - 1].second).pow(2)))).toFloat()
             }
         }
 
@@ -303,6 +316,26 @@ class GaugeAcceleration : View {
 
     fun getDistance(): Float {
         return distancePx
+    }
+
+    fun getQ1(): Float {
+        val filtered = pointsList.filter { it.first < 0.5f && it.second < 0.5f }
+        return (filtered.size / pointsList.size.toFloat()) * 100f
+    }
+
+    fun getQ2(): Float {
+        val filtered = pointsList.filter { it.first >= 0.5f && it.second < 0.5f }
+        return (filtered.size / pointsList.size.toFloat()) * 100f
+    }
+
+    fun getQ3(): Float {
+        val filtered = pointsList.filter { it.first < 0.5f && it.second >= 0.5f }
+        return (filtered.size / pointsList.size.toFloat()) * 100f
+    }
+
+    fun getQ4(): Float {
+        val filtered = pointsList.filter { it.first >= 0.5f && it.second >= 0.5f }
+        return (filtered.size / pointsList.size.toFloat()) * 100f
     }
 
     companion object {

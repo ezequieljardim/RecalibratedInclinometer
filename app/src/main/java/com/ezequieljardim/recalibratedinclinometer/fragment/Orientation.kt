@@ -5,8 +5,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.view.Surface
 import android.view.WindowManager
+
+const val radsToDegree = 57.2959
 
 class Orientation(activity: Activity) : SensorEventListener {
     interface Listener {
@@ -57,30 +58,32 @@ class Orientation(activity: Activity) : SensorEventListener {
     private fun updateOrientation(rotationVector: FloatArray) {
         val rotationMatrix = FloatArray(9)
         SensorManager.getRotationMatrixFromVector(rotationMatrix, rotationVector)
-        val worldAxisForDeviceAxisX: Int
-        val worldAxisForDeviceAxisY: Int
-        when (mWindowManager.defaultDisplay.rotation) {
-            Surface.ROTATION_0 -> {
-                worldAxisForDeviceAxisX = SensorManager.AXIS_X
-                worldAxisForDeviceAxisY = SensorManager.AXIS_Z
-            }
-            Surface.ROTATION_90 -> {
-                worldAxisForDeviceAxisX = SensorManager.AXIS_Z
-                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_X
-            }
-            Surface.ROTATION_180 -> {
-                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_X
-                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_Z
-            }
-            Surface.ROTATION_270 -> {
-                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_Z
-                worldAxisForDeviceAxisY = SensorManager.AXIS_X
-            }
-            else -> {
-                worldAxisForDeviceAxisX = SensorManager.AXIS_X
-                worldAxisForDeviceAxisY = SensorManager.AXIS_Z
-            }
-        }
+        val worldAxisForDeviceAxisX = SensorManager.AXIS_X
+        val worldAxisForDeviceAxisY = SensorManager.AXIS_Y
+
+        // Leave this uncommented since won't be used
+//        when (mWindowManager.defaultDisplay.rotation) {
+//            Surface.ROTATION_0 -> {
+//                worldAxisForDeviceAxisX = SensorManager.AXIS_X
+//                worldAxisForDeviceAxisY = SensorManager.AXIS_Z
+//            }
+//            Surface.ROTATION_90 -> {
+//                worldAxisForDeviceAxisX = SensorManager.AXIS_Z
+//                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_X
+//            }
+//            Surface.ROTATION_180 -> {
+//                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_X
+//                worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_Z
+//            }
+//            Surface.ROTATION_270 -> {
+//                worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_Z
+//                worldAxisForDeviceAxisY = SensorManager.AXIS_X
+//            }
+//            else -> {
+//                worldAxisForDeviceAxisX = SensorManager.AXIS_X
+//                worldAxisForDeviceAxisY = SensorManager.AXIS_Z
+//            }
+//        }
         val adjustedRotationMatrix = FloatArray(9)
         SensorManager.remapCoordinateSystem(rotationMatrix, worldAxisForDeviceAxisX,
                 worldAxisForDeviceAxisY, adjustedRotationMatrix)
@@ -90,11 +93,12 @@ class Orientation(activity: Activity) : SensorEventListener {
         SensorManager.getOrientation(adjustedRotationMatrix, orientation)
 
         // Convert radians to degrees
-        val roll = orientation[0] * -57
-        val pitch = orientation[1] * -57
-        val yaw = orientation[2] * -57
 
-        mListener!!.onOrientationChanged(yaw, pitch, roll, orientation[0], orientation[1], orientation[2])
+        val yaw = (orientation[0] * radsToDegree).toFloat()
+        val pitch = (orientation[1] * -radsToDegree).toFloat()
+        val roll = (orientation[2] * radsToDegree).toFloat()
+
+        mListener!!.onOrientationChanged(yaw, pitch, roll , orientation[0], orientation[1], orientation[2])
     }
 
     companion object {
@@ -103,6 +107,6 @@ class Orientation(activity: Activity) : SensorEventListener {
 
     init {
         // Can be null if the sensor hardware is not available
-        mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR) //TYPE_ROTATION_VECTOR)
     }
 }

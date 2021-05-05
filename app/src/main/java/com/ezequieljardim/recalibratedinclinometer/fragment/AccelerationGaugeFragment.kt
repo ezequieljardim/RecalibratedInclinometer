@@ -29,6 +29,11 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
     lateinit var newZAccelerationTV: TextView
     lateinit var distancePxTV: TextView
 
+    lateinit var topLeftQTV: TextView
+    lateinit var topRightQTV: TextView
+    lateinit var bottomLeftQTV: TextView
+    lateinit var bottomRightQTV: TextView
+
     lateinit var calibrationBtn: Button
     lateinit var resetBtn: Button
 
@@ -70,9 +75,14 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         storedPitchView = view.findViewById(R.id.stored_pitch)
         storedRollView = view.findViewById(R.id.stored_roll)
 
-        newXAccelerationTV = view.findViewById(R.id.new_acc_x)
-        newYAccelerationTV = view.findViewById(R.id.new_acc_y)
-        newZAccelerationTV = view.findViewById(R.id.new_acc_z)
+//        newXAccelerationTV = view.findViewById(R.id.new_acc_x)
+//        newYAccelerationTV = view.findViewById(R.id.new_acc_y)
+//        newZAccelerationTV = view.findViewById(R.id.new_acc_z)
+
+        topLeftQTV = view.findViewById(R.id.top_left_q)
+        topRightQTV = view.findViewById(R.id.top_right_q)
+        bottomLeftQTV = view.findViewById(R.id.bottom_left_q)
+        bottomRightQTV = view.findViewById(R.id.bottom_right_q)
 
         distancePxTV = view.findViewById(R.id.distance_px)
 
@@ -113,29 +123,70 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         mOrientation!!.stopListening()
     }
 
+    private fun getCalibrationMatrix(yawAngle: Float, pitchAngle: Float, rollAngle: Float): FloatArray {
+        val calibrationMatrixArray = FloatArray(9)
+
+        // First row
+        calibrationMatrixArray[0] = cos(yawAngle) * cos(rollAngle) - sin(yawAngle) * sin(rollAngle) * sin(pitchAngle)
+        calibrationMatrixArray[1] = sin(yawAngle) * cos(pitchAngle)
+        calibrationMatrixArray[2] = cos(yawAngle) * sin(rollAngle) + sin(yawAngle) * cos(rollAngle) * sin(pitchAngle)
+
+        // Second row
+        calibrationMatrixArray[3] = -sin(yawAngle) * cos(rollAngle) - cos(yawAngle) * sin(rollAngle) * sin(pitchAngle)
+        calibrationMatrixArray[4] = cos(yawAngle) * cos(pitchAngle)
+        calibrationMatrixArray[5] = -sin(yawAngle) * sin(rollAngle) + cos(yawAngle) * cos(rollAngle) * sin(pitchAngle)
+
+        // Third row
+        calibrationMatrixArray[6] = -sin(rollAngle) * cos(yawAngle)
+        calibrationMatrixArray[7] = -sin(pitchAngle)
+        calibrationMatrixArray[8] = cos(rollAngle) * cos(pitchAngle)
+
+        return calibrationMatrixArray
+    }
+
     private fun updateAccelerationGauge() {
 
         if (calibrationRadians == null) {
             gaugeAcceleration!!.updatePoint(acceleration!![0], acceleration!![1])
         } else {
             val newAcc = FloatArray(3)
-            val horizontalPitch = Math.PI / 2.0f
-            val newPitch = calibrationRadians!![1]
-            val rotRads = horizontalPitch - newPitch
 
-            // Multiply acceleration with rotation matrix around X axis (pitch)
-            newAcc[0] = acceleration!![0]
-            newAcc[1] = (acceleration!![1] * cos(rotRads) + acceleration!![2] * -sin(rotRads)).toFloat()
-            newAcc[2] = (acceleration!![1] * sin(rotRads) + acceleration!![2] * cos(rotRads)).toFloat()
+            val horizontalPitch = 0.0f
+            val horizontalRoll = 0.0f // Horizontal, pointing up
 
-            newXAccelerationTV.text = parseFloat(newAcc[0], "%.2f")
-            newYAccelerationTV.text = parseFloat(newAcc[1], "%.2f")
-            newZAccelerationTV.text = parseFloat(newAcc[2], "%.2f")
+            // If pitch > 0 then we need to apply the a negative rotation in X axis
+            val calibrationPitch = calibrationRadians!![1]
+            val pitchToRotate = horizontalPitch + calibrationPitch
+
+
+            // If roll > 0 then we need to apply the a negative rotation in X axis
+            val calibrationRoll = calibrationRadians!![2]
+            val rollToRotate = horizontalRoll + calibrationRoll
+
+            // Yaw won't be rotated, so 0 rads
+            val yawToRotate = 0.0f
+
+            val rotM = getCalibrationMatrix(yawToRotate, pitchToRotate, rollToRotate)
+
+            newAcc[0] = acceleration!![0] * rotM[0] + acceleration!![1] * rotM[1] + acceleration!![2] * rotM[2]
+            newAcc[1] = acceleration!![0] * rotM[3] + acceleration!![1] * rotM[4] + acceleration!![2] * rotM[5]
+            newAcc[2] = acceleration!![0] * rotM[6] + acceleration!![1] * rotM[7] + acceleration!![2] * rotM[8]
+
+//            newXAccelerationTV.text = parseFloat(newAcc[0], "%.2f")
+//            newYAccelerationTV.text = parseFloat(newAcc[1], "%.2f")
+//            newZAccelerationTV.text = parseFloat(newAcc[2], "%.2f")
 
             gaugeAcceleration!!.updatePoint(newAcc[0], newAcc[1])
         }
 
-        distancePxTV.text = gaugeAcceleration!!.getDistance().toString()
+        distancePxTV.text = parseFloat(gaugeAcceleration!!.getDistance(), "%.0f")
+
+        topLeftQTV.text = parseFloat(gaugeAcceleration!!.getQ1(), "%.0f")
+        topRightQTV.text = parseFloat(gaugeAcceleration!!.getQ2(), "%.0f")
+        bottomLeftQTV.text = parseFloat(gaugeAcceleration!!.getQ3(), "%.0f")
+        bottomRightQTV.text = parseFloat(gaugeAcceleration!!.getQ4(), "%.0f")
+
+
         //        System.out.println("Accelerations (x,y) = (" + acceleration[0] + "," + acceleration[1] + ")");
     }
 
@@ -165,6 +216,7 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         storedYawView.text = parseFloat(calibrationDegrees!![0], "%.0f")
         storedPitchView.text = parseFloat(calibrationDegrees!![1], "%.0f")
         storedRollView.text = parseFloat(calibrationDegrees!![2], "%.0f")
+
     }
 
     private fun resetRotationValues() {
@@ -172,12 +224,12 @@ class AccelerationGaugeFragment : Fragment(), Orientation.Listener {
         calibrationRadians = null
 
         storedYawView.text = "-"
-        storedPitchView.text = "-"
         storedRollView.text = "-"
+        storedPitchView.text = "-"
 
-        newXAccelerationTV.text = "-"
-        newYAccelerationTV.text = "-"
-        newZAccelerationTV.text = "-"
+//        newXAccelerationTV.text = "-"
+//        newYAccelerationTV.text = "-"
+//        newZAccelerationTV.text = "-"
     }
 
 }
